@@ -147,6 +147,15 @@ public static partial class ImageExtensions
     }
 
 
+    #region Rotations file cache
+
+    public static void ApplyAllRotations(this Image image, List<RotateFlipType> rotations)
+    {
+        if (rotations.Count == 0) return;
+        rotations.ForEach(r => image.RotateFlip(r));
+    }
+
+
     public static void SimplifyRotations(this List<RotateFlipType> rotations)
     {
         if (rotations.Count == 0) return;
@@ -215,4 +224,8 @@ public static partial class ImageExtensions
         //append to the current path
         File.AppendAllText(cachePath, $"{Path.GetFileName(imageFilePath)}\t{actions}\r\n");
     }
+
+
+    #endregion
+
 }

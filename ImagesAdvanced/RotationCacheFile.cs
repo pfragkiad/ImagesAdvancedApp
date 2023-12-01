@@ -1,12 +1,15 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ImagesAdvanced;
-
-public static partial class ImageExtensions
+public class RotationCacheFile
 {
-    public readonly struct RotationCacheFile
-    {
-        public string Filename { get; init; }
-        public List<RotateFlipType> Rotations { get; init; }
-    }
+
+    private int currentIndex = -1;
+
+
 }
+
