@@ -26,10 +26,18 @@ public class BrowserWithRotationCache
     private string? _rotationCachePath;
     List<RotateFlipType> _actions = [];
     bool _actionHasBeenAdded = false;
-
+    int _currentZoom = 0;
+    Image? _currentZoomedImage = null;
 
     private Image? _currentImage = null;
-    public Image? CurrentImage { get => _currentImage; }
+    public Image? CurrentImage
+    {
+        get
+        {
+            Image? image = _currentZoomedImage is null ? _currentImage : _currentZoomedImage;
+            return image is null ? null : new Bitmap(image);
+        }
+    }
 
     //Changing the CurrentDirectory calls the reset if it is needed.
     //Reset is called after a Reload/Refresh action.
@@ -41,6 +49,8 @@ public class BrowserWithRotationCache
         _currentImagePath = null;
         _actions = [];
         _actionHasBeenAdded = false;
+        _currentZoom = 0;
+        _currentZoomedImage = null;
 
         if (!keepSameDirectory)
             _currentDirectory = null;
@@ -122,7 +132,7 @@ public class BrowserWithRotationCache
         if (!File.Exists(_rotationCachePath))
             _actions = [];
         else
-        { 
+        {
             //should read once when loading the file once!
             var record = RotationCacheFileRecord.ReadFromFile(_rotationCachePath, Path.GetFileName(_currentImagePath));
 
@@ -136,6 +146,8 @@ public class BrowserWithRotationCache
         }
 
         _actionHasBeenAdded = false;
+        _currentZoom = 0;
+        _currentZoomedImage = null;
 
         //inform event subscribers
         //BackgroundImage = _image;
@@ -150,7 +162,30 @@ public class BrowserWithRotationCache
         _actions.AppendRotationsActionsToCacheFile(_currentImagePath, _rotationCachePath);
     }
 
-     
+    public void Zoom(int zoomIncrement)
+    {
+        if (_currentImage is null) return;
+        if (zoomIncrement == 0)
+        {
+            _currentZoomedImage = null;
+            return;
+        }
+
+        _currentZoom += zoomIncrement;
+
+        int newWidth = (int)((1 + 0.1 * _currentZoom) * _currentImage.Width);
+        int newHeight = (int)((1 + 0.1 * _currentZoom) * _currentImage.Height);
+
+        _currentZoomedImage = ImageExtensions.FitImage(
+            _currentImage,
+            newWidth,
+            newHeight,
+            Color.Black,
+            false);
+
+        ImageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public void AddRotateAction(RotateFlipType rotate)
     {
         if (_currentImage is null) return;

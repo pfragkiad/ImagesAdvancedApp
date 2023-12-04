@@ -36,8 +36,8 @@ public static partial class ImageExtensions
         var image = GetUnlockedImageFromFile(fileName, rotate);
 
         //imageList1.ImageSize.Width, imageList1.ImageSize.Height, listView1.BackColor
-        Image thumbnailImage = FitImage(image, thumbnailWidth, thumbnailHeight, backColor);
-        image.Dispose();
+        Image thumbnailImage = FitImage(image, thumbnailWidth, thumbnailHeight, backColor, disposeSourceImage: true);
+        
 
         return thumbnailImage;
     }
@@ -106,7 +106,12 @@ public static partial class ImageExtensions
     }
 
 
-    public static Image FitImage(Image image, int newWidth, int newHeight, Color backColor)
+    public static Image FitImage(
+        Image image,
+        int newWidth,
+        int newHeight,
+        Color backColor,
+        bool disposeSourceImage)
     {
         int sourceWidth = image.Width;
         int sourceHeight = image.Height;
@@ -142,7 +147,9 @@ public static partial class ImageExtensions
             GraphicsUnit.Pixel);
 
         grPhoto.Dispose();
-        image.Dispose();
+
+        if (disposeSourceImage)
+            image.Dispose();
         return bmPhoto;
     }
 
@@ -216,14 +223,14 @@ public static partial class ImageExtensions
            .Where(l => l.Split('\t')[0] != Path.GetFileName(imageFilePath)).ToList() : [];
 
         //rewrite all recrods except the current one
-        if (records.Count>0)
+        if (records.Count > 0)
             File.WriteAllLines(cachePath, records);
         else
             File.Delete(cachePath);
 
         //append to the current path if needed
-        if(rotations.Count>0)
-        File.AppendAllText(cachePath, $"{Path.GetFileName(imageFilePath)}\t{actions}\r\n");
+        if (rotations.Count > 0)
+            File.AppendAllText(cachePath, $"{Path.GetFileName(imageFilePath)}\t{actions}\r\n");
     }
 
 
