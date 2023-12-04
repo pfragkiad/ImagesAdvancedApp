@@ -21,31 +21,37 @@ public class BrowserWithRotationCache
 
     private List<string> _imageFiles = [];
     private int _currentIndex = -1;
-    private string? _currentPath = null;
+    private string? _currentImagePath = null;
 
     private string? _rotationCachePath;
     List<RotateFlipType> _actions = [];
+    bool _actionHasBeenAdded = false;
 
 
     private Image? _currentImage = null;
     public Image? CurrentImage { get => _currentImage; }
 
+    //Changing the CurrentDirectory calls the reset if it is needed.
+    //Reset is called after a Reload/Refresh action.
     private void Reset(bool keepSameDirectory)
     {
         _imageFiles = [];
         _currentIndex = -1;
         _currentImage = null;
-        _currentPath = null;
+        _currentImagePath = null;
         _actions = [];
+        _actionHasBeenAdded = false;
+
         if (!keepSameDirectory)
             _currentDirectory = null;
 
     }
 
-    public void Reload()
+    public void Reload(bool proceedNext)
     {
         Reset(keepSameDirectory: true);
         LoadDirectory(_currentDirectory);
+        if (proceedNext) ProceedNext();
     }
 
     private string? _currentDirectory;
@@ -55,13 +61,15 @@ public class BrowserWithRotationCache
 
         set
         {
-            if (_currentDirectory != value) Reset(keepSameDirectory:false);
+            if (_currentDirectory != value) Reset(keepSameDirectory: false);
 
             _currentDirectory = value;
             LoadDirectory(_currentDirectory);
         }
 
     }
+
+    //TODO: If rotationCachePath already exists then load all records and update cache accordingly.
 
     private void LoadDirectory(string? directory)
     {
@@ -104,18 +112,19 @@ public class BrowserWithRotationCache
 
     public event EventHandler? ImageChanged;
 
-    public void SetImage(string filePath)
+    private void SetImage(string imageFilePath)
     {
         //load image
-        _currentPath = filePath;
-        _currentImage = ImageExtensions.GetUnlockedImageFromFile(filePath);
+        _currentImagePath = imageFilePath;
+        _currentImage = ImageExtensions.GetUnlockedImageFromFile(imageFilePath);
 
         //apply cached rotations if they exist
         if (!File.Exists(_rotationCachePath))
             _actions = [];
         else
-        {
-            var record = RotationCacheFileRecord.ReadFromFile(_rotationCachePath, Path.GetFileName(_currentPath));
+        { 
+            //should read once when loading the file once!
+            var record = RotationCacheFileRecord.ReadFromFile(_rotationCachePath, Path.GetFileName(_currentImagePath));
 
             if (record is null)
                 _actions = [];
@@ -126,20 +135,32 @@ public class BrowserWithRotationCache
             }
         }
 
+        _actionHasBeenAdded = false;
+
         //inform event subscribers
         //BackgroundImage = _image;
         ImageChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SaveCachedActions() =>
-        _actions.AppendRotationsActionsToCacheFile(_currentPath, _rotationCachePath);
+    public void SaveCachedActions()
+    {
+        //avoid saving the cache again if there are no current changes
+        if (!_actionHasBeenAdded) return;
 
+        _actions.AppendRotationsActionsToCacheFile(_currentImagePath, _rotationCachePath);
+    }
+
+     
     public void AddRotateAction(RotateFlipType rotate)
     {
         if (_currentImage is null) return;
 
         _actions.Add(rotate);
         _currentImage.RotateFlip(rotate);
+
+        //when we "leave" the image we should save cached actions
+        _actionHasBeenAdded = true;
+
         //BackgroundImage = (Image)_image.Clone();
         ImageChanged?.Invoke(this, EventArgs.Empty);
     }
