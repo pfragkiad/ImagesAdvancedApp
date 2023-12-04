@@ -28,6 +28,8 @@ public class BrowserWithRotationCache
     bool _actionHasBeenAdded = false;
     int _currentZoom = 0;
     Image? _currentZoomedImage = null;
+    int _xOffset, _yOffset;
+
 
     private Image? _currentImage = null;
     public Image? CurrentImage
@@ -51,6 +53,8 @@ public class BrowserWithRotationCache
         _actionHasBeenAdded = false;
         _currentZoom = 0;
         _currentZoomedImage = null;
+        _xOffset = 0;
+        _yOffset = 0;
 
         if (!keepSameDirectory)
             _currentDirectory = null;
@@ -148,6 +152,9 @@ public class BrowserWithRotationCache
         _actionHasBeenAdded = false;
         _currentZoom = 0;
         _currentZoomedImage = null;
+        _xOffset = 0;
+        _yOffset = 0;
+
 
         //inform event subscribers
         //BackgroundImage = _image;
@@ -181,7 +188,24 @@ public class BrowserWithRotationCache
             newWidth,
             newHeight,
             Color.Black,
-            false);
+            false, _xOffset, _yOffset);
+
+        ImageChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Pan(int x, int y)
+    {
+        if (_currentZoomedImage is null || _currentImage is null) return;
+
+        _xOffset += x;
+        _yOffset += y;
+
+        _currentZoomedImage = ImageExtensions.FitImage(
+            _currentImage,
+            _currentZoomedImage.Width,
+            _currentZoomedImage.Height,
+            Color.Black,
+            false, _xOffset, _yOffset);
 
         ImageChanged?.Invoke(this, EventArgs.Empty);
     }

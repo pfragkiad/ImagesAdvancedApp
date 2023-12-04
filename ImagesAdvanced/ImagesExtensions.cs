@@ -111,12 +111,13 @@ public static partial class ImageExtensions
         int newWidth,
         int newHeight,
         Color backColor,
-        bool disposeSourceImage)
+        bool disposeSourceImage,
+        int sourceX=0, int sourceY=0)
     {
         int sourceWidth = image.Width;
         int sourceHeight = image.Height;
 
-        int sourceX = 0, sourceY = 0, destX = 0, destY = 0;
+        int destX = 0, destY = 0;
 
         float nPercentW = (float)newWidth / (float)sourceWidth;
         float nPercentH = (float)newHeight / (float)sourceHeight;
