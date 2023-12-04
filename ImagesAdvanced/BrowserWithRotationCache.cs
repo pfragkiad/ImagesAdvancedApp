@@ -8,14 +8,6 @@ using System.Threading.Tasks;
 
 namespace ImagesAdvanced;
 
-public class BrowserOptions
-{
-    public string? InitialDirectory { get; set; }
-
-    public List<string> Extensions { get; set; } = [];
-
-}
-
 public class BrowserWithRotationCache
 {
     private readonly BrowserOptions _options;
@@ -24,34 +16,65 @@ public class BrowserWithRotationCache
     {
         _options = options.Value;
 
-        if (Directory.Exists(_options.InitialDirectory))
-            SetDirectory(_options.InitialDirectory);
+        CurrentDirectory = _options.InitialDirectory;
     }
 
     private List<string> _imageFiles = [];
     private int _currentIndex = -1;
-
-
-    private Image? _image = null;
-    public Image? CurrentImage { get => _image; }
-
     private string? _currentPath = null;
+
     private string? _rotationCachePath;
     List<RotateFlipType> _actions = [];
 
 
-    public void SetDirectory(string directoryName)
+    private Image? _currentImage = null;
+    public Image? CurrentImage { get => _currentImage; }
+
+    private void Reset(bool keepSameDirectory)
     {
-        //todo: read image extensions from config file
+        _imageFiles = [];
+        _currentIndex = -1;
+        _currentImage = null;
+        _currentPath = null;
+        _actions = [];
+        if (!keepSameDirectory)
+            _currentDirectory = null;
+
+    }
+
+    public void Reload()
+    {
+        Reset(keepSameDirectory: true);
+        LoadDirectory(_currentDirectory);
+    }
+
+    private string? _currentDirectory;
+    public string? CurrentDirectory
+    {
+        get => _currentDirectory;
+
+        set
+        {
+            if (_currentDirectory != value) Reset(keepSameDirectory:false);
+
+            _currentDirectory = value;
+            LoadDirectory(_currentDirectory);
+        }
+
+    }
+
+    private void LoadDirectory(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory)) return;
+        if (!Directory.Exists(directory)) return;
+
         _imageFiles = Directory
-            .GetFiles(directoryName, "*.*")
+            .GetFiles(directory, "*.*")
             .Where(f => _options.Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
             .ToList();
 
-        _rotationCachePath = Path.Combine(directoryName, "rotation_cache.txt");
-
-        _currentIndex = -1;
-        ProceedNext();
+        _rotationCachePath = Path.Combine(directory,
+            _options.RotationCacheFilename ?? "rotation_cache.txt");
     }
 
     public void ProceedNext()
@@ -79,33 +102,33 @@ public class BrowserWithRotationCache
     }
 
 
-    public event EventHandler ImageChanged;
+    public event EventHandler? ImageChanged;
 
     public void SetImage(string filePath)
     {
+        //load image
         _currentPath = filePath;
-        _image = Image.FromFile(filePath);
+        _currentImage = ImageExtensions.GetUnlockedImageFromFile(filePath);
 
+        //apply cached rotations if they exist
+        if (!File.Exists(_rotationCachePath))
+            _actions = [];
+        else
+        {
+            var record = RotationCacheFileRecord.ReadFromFile(_rotationCachePath, Path.GetFileName(_currentPath));
+
+            if (record is null)
+                _actions = [];
+            else
+            {
+                _actions = record.Rotations;
+                _currentImage.ApplyAllRotations(_actions);
+            }
+        }
+
+        //inform event subscribers
         //BackgroundImage = _image;
         ImageChanged?.Invoke(this, EventArgs.Empty);
-
-
-        if (!File.Exists(_rotationCachePath))
-        {
-            _actions = new();
-            return;
-        }
-
-        var record = RotationCacheFileRecord.ReadFromFile(_rotationCachePath, Path.GetFileName(_currentPath));
-
-        if (record is null)
-        {
-            _actions = new();
-            return;
-        }
-
-        _actions = record.Rotations;
-        _image.ApplyAllRotations(_actions);
     }
 
     public void SaveCachedActions() =>
@@ -113,10 +136,10 @@ public class BrowserWithRotationCache
 
     public void AddRotateAction(RotateFlipType rotate)
     {
-        if (_image is null) return;
+        if (_currentImage is null) return;
 
-        _image.RotateFlip(rotate);
         _actions.Add(rotate);
+        _currentImage.RotateFlip(rotate);
         //BackgroundImage = (Image)_image.Clone();
         ImageChanged?.Invoke(this, EventArgs.Empty);
     }

@@ -205,7 +205,7 @@ public static partial class ImageExtensions
     public static void AppendRotationsActionsToCacheFile(this List<RotateFlipType> rotations, string imageFilePath, string cachePath)
     {
         rotations.SimplifyRotations();
-        if (rotations.Count == 0) return;
+        //if (rotations.Count == 0) return;
 
         string actions = string.Join("-", rotations);
 
@@ -213,15 +213,16 @@ public static partial class ImageExtensions
         var records = File.Exists(cachePath) ?
             File
            .ReadAllLines(cachePath)
-           .Where(l => l.Split('\t')[0] != Path.GetFileName(imageFilePath)) : [];
+           .Where(l => l.Split('\t')[0] != Path.GetFileName(imageFilePath)).ToList() : [];
 
         //rewrite all recrods except the current one
-        if (records.Any())
+        if (records.Count>0)
             File.WriteAllLines(cachePath, records);
         else
             File.Delete(cachePath);
 
-        //append to the current path
+        //append to the current path if needed
+        if(rotations.Count>0)
         File.AppendAllText(cachePath, $"{Path.GetFileName(imageFilePath)}\t{actions}\r\n");
     }
 
